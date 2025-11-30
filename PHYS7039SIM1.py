@@ -10,6 +10,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Factory Machine Simulator")
 clock = pygame.time.Clock()
 
+font = pygame.font.SysFont(None, 24)
 # --- Colors ---
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -176,7 +177,6 @@ def handle_slider_key(event):
 
 
     
-
 def color_distance(c1, c2):
     """
     Euclidean distance between two RGB colours.
@@ -252,35 +252,61 @@ while running:
     preview_rect = pygame.Rect(WIDTH - 120, 20, 100, 50)
     pygame.draw.rect(screen, preview_color, preview_rect)      # filled with mix colour
     pygame.draw.rect(screen, BLACK, preview_rect, 2)           # black outline
+    
+    # Reference colour circle + label
+    ref_x = preview_rect.x + preview_rect.width // 2
+    ref_y = preview_rect.y + preview_rect.height + 40
+    ref_radius = 20
+    pygame.draw.circle(screen, BROWN_REF, (ref_x, ref_y), ref_radius)
+    pygame.draw.circle(screen, BLACK, (ref_x, ref_y), ref_radius, 2)
+    label_surface = font.render("Reference Colour", True, BLACK)
+    label_rect = label_surface.get_rect(center=(ref_x, ref_y + 35))
+    screen.blit(label_surface, label_rect)
 
-    # Show slider information on screen
+
+    # QC result beside preview box
+    if production_paused and qc_result is not None:
+        qc_color = (0, 180, 0) if qc_result == "PASS" else (200, 0, 0)
+        qc_surface = font.render(f"{qc_result}", True, qc_color)
+
+        qc_x = preview_rect.x - 100
+        qc_y = preview_rect.y + 15
+        screen.blit(qc_surface, (qc_x, qc_y))
+
+
+    # Show slider information (horizontally along the bottom)
     font = pygame.font.SysFont(None, 24)
 
-    y = 90
+    base_y = HEIGHT - 40  # vertical position for slider labels
+
     for i, name in enumerate(COLOR_ORDER):
         value = slider_values[name]
         enabled = slider_enabled[name]
 
-        # Mark the currently selected slider with ">"
-        prefix = "> " if i == current_slider_index else "  "
+        # X position for this slider "slot"
+        base_x = 40 + i * 130  # spreads 4 sliders across the width
 
-        status_text = f"{prefix}{name[:1].upper()} : {value:.2f}  ({'ON' if enabled else 'OFF'})"
-        text_surface = font.render(status_text, True, BLACK)
-        screen.blit(text_surface, (20, y))
-        y = y + 25
+        # Small colour swatch for this base colour
+        swatch_rect = pygame.Rect(base_x, base_y - 30, 80, 20)
+        pygame.draw.rect(screen, BASE_COLORS[name], swatch_rect)
+        pygame.draw.rect(screen, BLACK, swatch_rect, 1)
+
+        # Mark selected slider with ">"
+        prefix = "> " if i == current_slider_index else "  "
+        label = f"{prefix}{name[:1].upper()}: {value:.2f} ({'ON' if enabled else 'OFF'})"
+
+        text_surface = font.render(label, True, BLACK)
+        screen.blit(text_surface, (base_x, base_y))
+
+    # Status + QC text above the sliders, left side
+    status_text = "Selection: LOCKED (no new squares)" if production_paused else "Selection: LIVE"
+    status_surface = font.render(status_text, True, BLACK)
+    screen.blit(status_surface, (20, base_y - 60))
 
     # Show whether production is live or paused
     status_text = "Selection: LOCKED (no new squares)" if production_paused else "Selection: LIVE"
     status_surface = font.render(status_text, True, BLACK)
-    screen.blit(status_surface, (20, y + 10))
-
-    # Show QC result (only when paused and selected)
-    if production_paused and qc_result is not None:
-        qc_surface = font.render(f"QC RESULT: {qc_result}", True,
-                                 (0,180,0) if qc_result=="PASS" else (200,0,0))
-        screen.blit(qc_surface, (20, y + 40))
-
-
+    
     # Draw products
     for p in products:
         p.draw(screen)
