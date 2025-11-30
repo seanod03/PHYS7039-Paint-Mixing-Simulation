@@ -30,6 +30,9 @@ BROWN_REF = (150, 75, 0)      # reference brown colour
 BROWN_THRESHOLD = 80          # distance threshold (tweak as needed)
 qc_result = None              # will store "PASS" or "FAIL"
 
+#Logging
+LOG_FILENAME = "PaintSim_log.txt"
+
 # Slider values (how much of each colour).
 # For now, these are just placeholders; we will change them with keys later.
 slider_values = {
@@ -126,7 +129,7 @@ def handle_slider_key(event):
       UP / DOWN: increase / decrease selected slider value
       SPACE: toggle selected slider on/off
     """
-    global current_slider_index, production_paused, selected_color
+    global current_slider_index, production_paused, selected_color, qc_result
 
     if event.type != pygame.KEYDOWN:
         return
@@ -168,12 +171,21 @@ def handle_slider_key(event):
             global qc_result
             qc_result = "PASS" if passed else "FAIL"
 
+            #Log selection event
+            log_selection_event(selected_color, passed)
+
             print("Selected:", selected_color, "QC:", qc_result)
         
         else:
             selected_color = None
             qc_result = None
             print("Selection Cleared (Production resumed)")
+        
+     
+    # 'C' key: clear the log file
+    if event.key == pygame.K_c:
+        clear_log_file()
+
 
 
     
@@ -193,6 +205,58 @@ def quality_check(color):
     dist = color_distance(color, BROWN_REF)
     return dist >= BROWN_THRESHOLD
 
+
+def log_production_event(mixed_color):
+    """
+    Log a product being produced while the machine is running.
+    Records time, RGB colour, and slider states.
+    """
+    timestamp = time.ctime()
+    line = "PRODUCTION\t" + timestamp
+    line = line + f"\tRGB={mixed_color}"
+
+    # Add slider info
+    for name in COLOR_ORDER:
+        value = slider_values[name]
+        enabled = slider_enabled[name]
+        line = line + f"\t{name}={value:.2f} ({'ON' if enabled else 'OFF'})"
+
+    # Write to file
+    logfile = open(LOG_FILENAME, "a")
+    logfile.write(line + "\n")
+    logfile.close()
+
+
+def log_selection_event(selected_color, passed):
+    """
+    Log a user-confirmed selection (when ENTER is pressed and QC is run).
+    """
+    timestamp = time.ctime()
+    line = "SELECTION\t" + timestamp
+    line = line + f"\tRGB={selected_color}\tQC={'PASS' if passed else 'FAIL'}"
+
+    # Add slider info at the moment of selection
+    for name in COLOR_ORDER:
+        value = slider_values[name]
+        enabled = slider_enabled[name]
+        line = line + f"\t{name}={value:.2f} ({'ON' if enabled else 'OFF'})"
+
+    logfile = open(LOG_FILENAME, "a")
+    logfile.write(line + "\n")
+    logfile.close()
+
+
+def clear_log_file():
+    """
+    Clear the log file contents (user interaction).
+    Called when the user presses 'C'.
+    """
+    timestamp = time.ctime()
+    logfile = open(LOG_FILENAME, "w")
+    logfile.write("LOG CLEARED at " + timestamp + "\n")
+    logfile.close()
+    print("Log file cleared.")
+
 # --- Product class ---
 class Product:
     def __init__(self, x, y, color):
@@ -209,6 +273,12 @@ class Product:
 products = []
 last_production_time = 0
 PRODUCTION_INTERVAL = 2000  # milliseconds
+
+# Mark the start of a new run in the log file
+run_time = time.ctime()
+logfile = open("LOG_FILENAME.txt", "a")
+logfile.write("\n=== NEW RUN at " + run_time + " ===\n")
+logfile.close()
 
 
 # --- Main loop ---
@@ -235,6 +305,10 @@ while running:
         new_product = Product(100, random.randint(50, HEIGHT-50), mixed_rgb)
         products.append(new_product)
         last_production_time = current_time
+
+        #Log this production event
+        log_production_event(mixed_rgb)
+
 
         # later: log to file here
         print(f"Produced product at {time.ctime(new_product.timestamp)}")
