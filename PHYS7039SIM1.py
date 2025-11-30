@@ -3,7 +3,7 @@ import sys
 import random
 import time
 
-# --- Pygame setup ---
+# Pygame setup 
 pygame.init()
 WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -11,12 +11,12 @@ pygame.display.set_caption("Factory Machine Simulator")
 clock = pygame.time.Clock()
 
 font = pygame.font.SysFont(None, 24)
-# --- Colors ---
+# Colours
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 PRODUCT_COLORS = [(200, 50, 50), (50, 200, 50), (50, 50, 200), (200, 200, 50)]
 
-# --- Paint mixing state (we will hook this in later) ---
+# Paint mixing state -
 
 # Base colours as pure RGB
 BASE_COLORS = {
@@ -25,16 +25,15 @@ BASE_COLORS = {
     "blue":   (0, 0, 255),
     "yellow": (255, 255, 0),
 }
-# --- Quality Check Settings ---
+# Quality Check Settings 
 BROWN_REF = (150, 75, 0)      # reference brown colour
 BROWN_THRESHOLD = 80          # distance threshold (tweak as needed)
 qc_result = None              # will store "PASS" or "FAIL"
 
-#Logging
+# Logging
 LOG_FILENAME = "PaintSim_log.txt"
 
-# Slider values (how much of each colour).
-# For now, these are just placeholders; we will change them with keys later.
+# Slider values 
 slider_values = {
     "red": 0.0,
     "green": 0.0,
@@ -50,7 +49,7 @@ slider_enabled = {
     "yellow": False,
 }
 
-# --- Paint mixing state (we will hook this in later) ---
+# Paint mixing state 
 
 BASE_COLORS = {
     "red":    (255, 0, 0),
@@ -86,7 +85,7 @@ COLOR_ORDER = ["red", "green", "blue", "yellow"]
 current_slider_index = 0  # start by controlling "red"
 
 # How much to change the slider per key press
-SLIDER_STEP = 0.1  # you can tweak this
+SLIDER_STEP = 0.1  # This can be changed, 0.2, 0.05, etc.
 
 
 def mix_color():
@@ -104,7 +103,7 @@ def mix_color():
 
     # 2. If nothing is enabled or everything is zero, return a neutral grey
     if total == 0:
-        return (150, 150, 150)
+        return (150, 150, 150) #Neutral Grey
 
     # 3. Weighted average of base colours
     r_sum = 0.0
@@ -281,7 +280,7 @@ logfile.write("\n=== NEW RUN at " + run_time + " ===\n")
 logfile.close()
 
 
-# --- Main loop ---
+# Main loop 
 running = True
 while running:
     dt = clock.tick(60)  # keep loop running ~60 fps
@@ -295,8 +294,8 @@ while running:
         # handle slider controls
         handle_slider_key(event)
 
-    # --- Produce a new product every few seconds ---
-        # --- Produce a new product every few seconds ---
+    # Produce a new product every few seconds 
+
     current_time = pygame.time.get_ticks()
     if (not production_paused) and (current_time - last_production_time > PRODUCTION_INTERVAL):
         # get the current mixed colour from sliders
@@ -306,7 +305,7 @@ while running:
         products.append(new_product)
         last_production_time = current_time
 
-        #Log this production event
+        # Log this production event
         log_production_event(mixed_rgb)
 
 
