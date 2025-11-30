@@ -24,6 +24,10 @@ BASE_COLORS = {
     "blue":   (0, 0, 255),
     "yellow": (255, 255, 0),
 }
+# --- Quality Check Settings ---
+BROWN_REF = (150, 75, 0)      # reference brown colour
+BROWN_THRESHOLD = 80          # distance threshold (tweak as needed)
+qc_result = None              # will store "PASS" or "FAIL"
 
 # Slider values (how much of each colour).
 # For now, these are just placeholders; we will change them with keys later.
@@ -64,6 +68,14 @@ slider_enabled = {
     "blue": False,
     "yellow": False,
 }
+
+COLOR_ORDER = ["red", "green", "blue", "yellow"]
+current_slider_index = 0  # start with red selected
+SLIDER_STEP = 0.1
+
+# Selection / confirmation state
+production_paused = False      # when True, no new squares are generated
+selected_color = None          # stores the colour at the moment of selection
 
 # Order of sliders for keyboard control
 COLOR_ORDER = ["red", "green", "blue", "yellow"]
@@ -113,7 +125,7 @@ def handle_slider_key(event):
       UP / DOWN: increase / decrease selected slider value
       SPACE: toggle selected slider on/off
     """
-    global current_slider_index
+    global current_slider_index, production_paused, selected_color
 
     if event.type != pygame.KEYDOWN:
         return
@@ -142,7 +154,44 @@ def handle_slider_key(event):
     # SPACE toggles on/off for that slider
     if event.key == pygame.K_SPACE:
         slider_enabled[current_name] = not slider_enabled[current_name]
+    
+    # ENTER: toggle selection / confirmation state
+    if event.key == pygame.K_RETURN:
+        production_paused = not production_paused
+        if production_paused:
+            #Lock in colour
+            selected_color = mix_color()
 
+            #Run quality check
+            passed = quality_check(selected_color)
+            global qc_result
+            qc_result = "PASS" if passed else "FAIL"
+
+            print("Selected:", selected_color, "QC:", qc_result)
+        
+        else:
+            selected_color = None
+            qc_result = None
+            print("Selection Cleared (Production resumed)")
+
+
+    
+
+def color_distance(c1, c2):
+    """
+    Euclidean distance between two RGB colours.
+    """
+    r1, g1, b1 = c1
+    r2, g2, b2 = c2
+    return ((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2) ** 0.5
+
+def quality_check(color):
+    """
+    Returns True if colour is NOT brown-like (PASS),
+    False if colour is too close to brown (FAIL).
+    """
+    dist = color_distance(color, BROWN_REF)
+    return dist >= BROWN_THRESHOLD
 
 # --- Product class ---
 class Product:
@@ -154,7 +203,6 @@ class Product:
 
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, self.rect)
-
 
 
 # --- Machine state ---
@@ -180,7 +228,7 @@ while running:
     # --- Produce a new product every few seconds ---
         # --- Produce a new product every few seconds ---
     current_time = pygame.time.get_ticks()
-    if current_time - last_production_time > PRODUCTION_INTERVAL:
+    if (not production_paused) and (current_time - last_production_time > PRODUCTION_INTERVAL):
         # get the current mixed colour from sliders
         mixed_rgb = mix_color()
 
@@ -220,6 +268,18 @@ while running:
         text_surface = font.render(status_text, True, BLACK)
         screen.blit(text_surface, (20, y))
         y = y + 25
+
+    # Show whether production is live or paused
+    status_text = "Selection: LOCKED (no new squares)" if production_paused else "Selection: LIVE"
+    status_surface = font.render(status_text, True, BLACK)
+    screen.blit(status_surface, (20, y + 10))
+
+    # Show QC result (only when paused and selected)
+    if production_paused and qc_result is not None:
+        qc_surface = font.render(f"QC RESULT: {qc_result}", True,
+                                 (0,180,0) if qc_result=="PASS" else (200,0,0))
+        screen.blit(qc_surface, (20, y + 40))
+
 
     # Draw products
     for p in products:
