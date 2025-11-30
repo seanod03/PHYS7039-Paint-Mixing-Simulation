@@ -65,6 +65,14 @@ slider_enabled = {
     "yellow": False,
 }
 
+# Order of sliders for keyboard control
+COLOR_ORDER = ["red", "green", "blue", "yellow"]
+current_slider_index = 0  # start by controlling "red"
+
+# How much to change the slider per key press
+SLIDER_STEP = 0.1  # you can tweak this
+
+
 def mix_color():
     """
     Combine the enabled sliders into one RGB colour.
@@ -98,6 +106,43 @@ def mix_color():
     # 4. Convert back to integers 0–255
     return (int(r_sum), int(g_sum), int(b_sum))
 
+def handle_slider_key(event):
+    """
+    Use arrow keys to control sliders:
+      LEFT / RIGHT: change which colour is selected
+      UP / DOWN: increase / decrease selected slider value
+      SPACE: toggle selected slider on/off
+    """
+    global current_slider_index
+
+    if event.type != pygame.KEYDOWN:
+        return
+
+    # Change selected colour with LEFT / RIGHT
+    if event.key == pygame.K_RIGHT:
+        current_slider_index = (current_slider_index + 1) % len(COLOR_ORDER)
+    elif event.key == pygame.K_LEFT:
+        current_slider_index = (current_slider_index - 1) % len(COLOR_ORDER)
+
+    current_name = COLOR_ORDER[current_slider_index]
+
+    # Increase / decrease slider value with UP / DOWN
+    if event.key == pygame.K_UP:
+        slider_values[current_name] = slider_values[current_name] + SLIDER_STEP
+        if slider_values[current_name] > 1.0:
+            slider_values[current_name] = 1.0
+        # auto-enable when you adjust it
+        slider_enabled[current_name] = True
+
+    if event.key == pygame.K_DOWN:
+        slider_values[current_name] = slider_values[current_name] - SLIDER_STEP
+        if slider_values[current_name] < 0.0:
+            slider_values[current_name] = 0.0
+
+    # SPACE toggles on/off for that slider
+    if event.key == pygame.K_SPACE:
+        slider_enabled[current_name] = not slider_enabled[current_name]
+
 
 # --- Product class ---
 class Product:
@@ -123,9 +168,14 @@ running = True
 while running:
     dt = clock.tick(60)  # keep loop running ~60 fps
 
-    for event in pygame.event.get():
+    # Get all events
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.QUIT:
             running = False
+
+        # handle slider controls
+        handle_slider_key(event)
 
     # --- Produce a new product every few seconds ---
         # --- Produce a new product every few seconds ---
@@ -143,16 +193,40 @@ while running:
 
 
     # --- Drawing ---
+        # --- Drawing ---
     screen.fill(WHITE)
 
     # Machine representation
-    pygame.draw.rect(screen, BLACK, (50, HEIGHT//2 - 50, 60, 100), 2)
-    
+    pygame.draw.rect(screen, BLACK, (50, HEIGHT // 2 - 50, 60, 100), 2)
+
+    # Preview of current mixed colour (top-right corner)
+    preview_color = mix_color()
+    preview_rect = pygame.Rect(WIDTH - 120, 20, 100, 50)
+    pygame.draw.rect(screen, preview_color, preview_rect)      # filled with mix colour
+    pygame.draw.rect(screen, BLACK, preview_rect, 2)           # black outline
+
+    # Show slider information on screen
+    font = pygame.font.SysFont(None, 24)
+
+    y = 90
+    for i, name in enumerate(COLOR_ORDER):
+        value = slider_values[name]
+        enabled = slider_enabled[name]
+
+        # Mark the currently selected slider with ">"
+        prefix = "> " if i == current_slider_index else "  "
+
+        status_text = f"{prefix}{name[:1].upper()} : {value:.2f}  ({'ON' if enabled else 'OFF'})"
+        text_surface = font.render(status_text, True, BLACK)
+        screen.blit(text_surface, (20, y))
+        y = y + 25
+
     # Draw products
     for p in products:
         p.draw(screen)
 
     pygame.display.flip()
+
 
 
 pygame.quit()
